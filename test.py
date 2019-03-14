@@ -4,25 +4,29 @@ from got10k.experiments import *
 
 from siamfc import TrackerSiamFC
 
+from options import TestOptions
+
 
 if __name__ == '__main__':
+    opt = TestOptions().parse()
+
     # setup tracker
     net_path = 'pretrained/siamfc/model.pth'
-    tracker = TrackerSiamFC(net_path=net_path)
+    tracker = TrackerSiamFC(name=opt.name, weight=opt.weight)
 
     # setup experiments
-    experiments = [
-        ExperimentGOT10k('data/GOT-10k', subset='test'),
-        ExperimentOTB('data/OTB', version=2013),
-        ExperimentOTB('data/OTB', version=2015),
-        ExperimentVOT('data/vot2018', version=2018),
-        ExperimentDTB70('data/DTB70'),
-        ExperimentTColor128('data/Temple-color-128'),
-        ExperimentUAV123('data/UAV123', version='UAV123'),
-        ExperimentUAV123('data/UAV123', version='UAV20L'),
-        ExperimentNfS('data/nfs', fps=30),
-        ExperimentNfS('data/nfs', fps=240)
-    ]
+    experiments = []
+    for i in range(len(opt.exps)):
+        if opt.exps[i] in ['otb2013', 'OTB2013', 'OTB-2013']:
+            experiments.append(ExperimentOTB('data/OTB', version=2013))
+        elif opt.exps[i] in ['otb2015', 'OTB2015', 'OTB-2015']:
+            experiments.append(ExperimentOTB('data/OTB', version=2015))
+        elif opt.exps[i] in ['vot2018', 'VOT2018', 'VOT-2018']:
+            experiments.append(ExperimentVOT('data/vot2018', version=2018))
+        elif opt.exps[i] in ['got10k', 'GOT10k', 'GOT-10k']:
+            experiments.append(ExperimentGOT10k('data/GOT-10k', subset='test'))
+        else:
+            raise NotImplementederror
 
     # run tracking experiments and report performance
     for e in experiments:

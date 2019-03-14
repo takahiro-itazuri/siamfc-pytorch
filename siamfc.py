@@ -17,32 +17,33 @@ class SiamFC(nn.Module):
 
     def __init__(self):
         super(SiamFC, self).__init__()
-        self.feature = nn.Sequential(
+        self.features = nn.Sequential(
             # conv1
-            nn.Conv2d(3, 96, 11, 2),
-            nn.BatchNorm2d(96, eps=1e-6, momentum=0.05),
+            nn.Conv2d(3, 64, kernel_size=11, stride=2),
+            nn.BatchNorm2d(64, eps=1e-6, momentum=0.05),
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(3, 2),
+            nn.MaxPool2d(kernel_size=3, stride=2),
             # conv2
-            nn.Conv2d(96, 256, 5, 1, groups=2),
-            nn.BatchNorm2d(256, eps=1e-6, momentum=0.05),
+            nn.Conv2d(64, 192, kernel_size=5, stride=1),
+            nn.BatchNorm2d(192, eps=1e-6, momentum=0.05),
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(3, 2),
+            nn.MaxPool2d(kernel_size=3, stride=2),
             # conv3
-            nn.Conv2d(256, 384, 3, 1),
+            nn.Conv2d(192, 384, kernel_size=3, stride=1),
             nn.BatchNorm2d(384, eps=1e-6, momentum=0.05),
             nn.ReLU(inplace=True),
             # conv4
-            nn.Conv2d(384, 384, 3, 1, groups=2),
-            nn.BatchNorm2d(384, eps=1e-6, momentum=0.05),
+            nn.Conv2d(384, 256, kernel_size=3, stride=1),
+            nn.BatchNorm2d(256, eps=1e-6, momentum=0.05),
             nn.ReLU(inplace=True),
             # conv5
-            nn.Conv2d(384, 256, 3, 1, groups=2))
+            nn.Conv2d(256, 256, kernel_size=3, stride=1)
+        )
         self._initialize_weights()
 
     def forward(self, z, x):
-        z = self.feature(z)
-        x = self.feature(x)
+        z = self.features(z)
+        x = self.features(x)
 
         # fast cross correlation
         n, c, h, w = x.size()
@@ -68,9 +69,9 @@ class SiamFC(nn.Module):
 
 class TrackerSiamFC(Tracker):
 
-    def __init__(self, net_path=None, **kargs):
+    def __init__(self, name='SiamFC', weight=None, **kargs):
         super(TrackerSiamFC, self).__init__(
-            name='SiamFC', is_deterministic=True)
+            name=name, is_deterministic=True)
         self.cfg = self.parse_args(**kargs)
 
         # setup GPU device if available
@@ -79,9 +80,8 @@ class TrackerSiamFC(Tracker):
 
         # setup model
         self.net = SiamFC()
-        if net_path is not None:
-            self.net.load_state_dict(torch.load(
-                net_path, map_location=lambda storage, loc: storage))
+        if weight is not None:
+            self.net.load_state_dict(torch.load(weight), strict=False)
         self.net = self.net.to(self.device)
 
         # setup optimizer
@@ -164,7 +164,7 @@ class TrackerSiamFC(Tracker):
             self.device).permute([2, 0, 1]).unsqueeze(0).float()
         with torch.set_grad_enabled(False):
             self.net.eval()
-            self.kernel = self.net.feature(exemplar_image)
+            self.kernel = self.net.features(exemplar_image)
 
     def update(self, image):
         image = np.asarray(image)
@@ -181,7 +181,7 @@ class TrackerSiamFC(Tracker):
         # responses
         with torch.set_grad_enabled(False):
             self.net.eval()
-            instances = self.net.feature(instance_images)
+            instances = self.net.features(instance_images)
             responses = F.conv2d(instances, self.kernel) * 0.001
         responses = responses.squeeze(1).cpu().numpy()
 
@@ -241,7 +241,7 @@ class TrackerSiamFC(Tracker):
             responses = self.net(z, x)
             labels, weights = self._create_labels(responses.size())
             loss = F.binary_cross_entropy_with_logits(
-                responses, labels, weight=weights, size_average=True)
+                responses, labels, weight=weights, reduction='mean')
 
             if backward:
                 self.optimizer.zero_grad()
