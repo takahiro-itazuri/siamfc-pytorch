@@ -66,12 +66,14 @@ class TrainOptions(BaseOptions):
 		# data
 		parser.add_argument('-d', '--dataset', type=str, default='got10k', help='dataset: ilsvrc | got10k')
 		parser.add_argument('-j', '--num_workers', type=int, default=4, help='number of workers to laod data')
+		# model
+		parser.add_argument('-w', '--weight', type=str,  default=None, help='pre-trained model weight path')
 		# hyperparameter
 		parser.add_argument('--num_epochs', type=int, default=10, help='number of epochs')
 		parser.add_argument('--batch_size', type=int, default=8, help='batch size')
 		# log
 		parser.add_argument('-l', '--log_dir', type=str, default='logs', help='log directory')
-		parser.add_argument('--print_freq', type=int, default=10, help='frequency to print')
+		parser.add_argument('--print_freq', type=int, default=100, help='frequency to print')
 		return parser
 
 	def parse(self):

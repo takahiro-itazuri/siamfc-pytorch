@@ -10,6 +10,8 @@ from pairwise import Pairwise
 from siamfc import TrackerSiamFC
 
 from options import TrainOptions
+from meter import AverageMeter
+from logger import Logger
 
 
 if __name__ == '__main__':
@@ -32,17 +34,27 @@ if __name__ == '__main__':
         pin_memory=opt.cuda, drop_last=True, num_workers=opt.num_workers)
 
     # setup tracker
-    tracker = TrackerSiamFC(name=opt.name)
+    tracker = TrackerSiamFC(name=opt.name, weight=opt.weight, device=opt.device)
 
     # training loop
+    itr = 0
+    num_itrs = int((opt.num_epochs * len(loader)) / opt.print_freq) + 1
+    loss_logger = Logger(os.path.join(opt.log_dir, 'loss.csv'), num_itrs)
+    loss_meter = AverageMeter()
     for epoch in range(opt.num_epochs):
         for step, batch in enumerate(loader):
             loss = tracker.step(
                 batch, backward=True, update_lr=(step == 0))
-            if step % opt.print_freq == 0:
-                print('Epoch [{}/{}][{}/{}]: Loss: {:.5f}'.format(
-                    epoch + 1, opt.num_epochs, step + 1, len(loader), loss))
+
+            itr += 1
+            loss_meter.update(loss)
+            if itr % opt.print_freq == 0:
+                print('Epoch [{}/{}] itr [{}]: Loss: {:.5f}'.format(
+                    epoch + 1, opt.num_epochs, itr, loss_meter.avg))
                 sys.stdout.flush()
+
+                loss_logger.set(itr / opt.print_freq, loss_meter.avg)
+                loss_meter = AverageMeter()
 
         # save checkpoint
         net_path = os.path.join(opt.log_dir, 'model_e%d.pth' % (epoch + 1))

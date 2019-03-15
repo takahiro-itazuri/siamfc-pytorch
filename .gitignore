@@ -1,10 +1,11 @@
 .*
 *.pyc
 data
-data/
 __pycache__/
-results*/
-reports*/
-cache*/
-pretrained*/
+results
+reports
+cache
+pretrained
+logs
+weights
 !.gitignore

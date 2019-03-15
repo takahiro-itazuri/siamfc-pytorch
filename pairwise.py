@@ -3,8 +3,9 @@ from __future__ import absolute_import, division
 import numpy as np
 from collections import namedtuple
 from torch.utils.data import Dataset
-from torchvision.transforms import Compose, CenterCrop, RandomCrop, ToTensor
+from torchvision.transforms import Compose, CenterCrop, RandomCrop, ToTensor, Normalize
 from PIL import Image, ImageStat, ImageOps
+Image.MAX_IMAGE_PIXELS = 933120000
 
 
 class RandomStretch(object):
@@ -39,12 +40,14 @@ class Pairwise(Dataset):
             CenterCrop(self.cfg.instance_sz - 8),
             RandomCrop(self.cfg.instance_sz - 2 * 8),
             CenterCrop(self.cfg.exemplar_sz),
-            ToTensor()])
+            ToTensor(),
+            Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]) # add normalization transforms
         self.transform_x = Compose([
             RandomStretch(max_stretch=0.05),
             CenterCrop(self.cfg.instance_sz - 8),
             RandomCrop(self.cfg.instance_sz - 2 * 8),
-            ToTensor()])
+            ToTensor(),
+            Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]) # add normalization transform
 
     def parse_args(self, **kargs):
         # default parameters
@@ -69,8 +72,8 @@ class Pairwise(Dataset):
         instance_image = Image.open(img_files[rand_x])
         exemplar_image = self._crop_and_resize(exemplar_image, anno[rand_z])
         instance_image = self._crop_and_resize(instance_image, anno[rand_x])
-        exemplar_image = 255.0 * self.transform_z(exemplar_image)
-        instance_image = 255.0 * self.transform_x(instance_image)
+        exemplar_image = self.transform_z(exemplar_image)
+        instance_image = self.transform_x(instance_image)
 
         return exemplar_image, instance_image
 

@@ -13,6 +13,13 @@ from torch.optim.lr_scheduler import ExponentialLR
 from got10k.trackers import Tracker
 
 
+mean = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32)
+std = torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32)
+
+def normalize(x, device):
+    return x.sub(mean.to(device)[None, :, None, None]).div(std.to(device)[None, :, None, None])
+
+
 class SiamFC(nn.Module):
 
     def __init__(self):
@@ -20,21 +27,21 @@ class SiamFC(nn.Module):
         self.features = nn.Sequential(
             # conv1
             nn.Conv2d(3, 64, kernel_size=11, stride=2),
-            nn.BatchNorm2d(64, eps=1e-6, momentum=0.05),
+            nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
             # conv2
             nn.Conv2d(64, 192, kernel_size=5, stride=1),
-            nn.BatchNorm2d(192, eps=1e-6, momentum=0.05),
+            nn.BatchNorm2d(192),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
             # conv3
             nn.Conv2d(192, 384, kernel_size=3, stride=1),
-            nn.BatchNorm2d(384, eps=1e-6, momentum=0.05),
+            nn.BatchNorm2d(384),
             nn.ReLU(inplace=True),
             # conv4
             nn.Conv2d(384, 256, kernel_size=3, stride=1),
-            nn.BatchNorm2d(256, eps=1e-6, momentum=0.05),
+            nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             # conv5
             nn.Conv2d(256, 256, kernel_size=3, stride=1)
@@ -69,14 +76,13 @@ class SiamFC(nn.Module):
 
 class TrackerSiamFC(Tracker):
 
-    def __init__(self, name='SiamFC', weight=None, **kargs):
+    def __init__(self, name='SiamFC', weight=None, device='cpu', **kargs):
         super(TrackerSiamFC, self).__init__(
             name=name, is_deterministic=True)
         self.cfg = self.parse_args(**kargs)
 
         # setup GPU device if available
-        self.cuda = torch.cuda.is_available()
-        self.device = torch.device('cuda:0' if self.cuda else 'cpu')
+        self.device = device
 
         # setup model
         self.net = SiamFC()
@@ -176,7 +182,8 @@ class TrackerSiamFC(Tracker):
             pad_color=self.avg_color) for f in self.scale_factors]
         instance_images = np.stack(instance_images, axis=0)
         instance_images = torch.from_numpy(instance_images).to(
-            self.device).permute([0, 3, 1, 2]).float()
+            self.device).permute([0, 3, 1, 2]).float() / 255.0
+        instance_images = normalize(instance_images, self.device)
 
         # responses
         with torch.set_grad_enabled(False):

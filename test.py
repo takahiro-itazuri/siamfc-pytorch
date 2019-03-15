@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
     # setup tracker
     net_path = 'pretrained/siamfc/model.pth'
-    tracker = TrackerSiamFC(name=opt.name, weight=opt.weight)
+    tracker = TrackerSiamFC(name=opt.name, weight=opt.weight, device=opt.device)
 
     # setup experiments
     experiments = []
